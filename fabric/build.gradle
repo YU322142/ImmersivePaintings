@@ -79,3 +79,9 @@ loom.remapConfigurations.configureEach {
         }
     }
 }
+
+// The shared resources are merged into Fabric's processResources task by the
+// multiloader build plugin, so exclude the upstream sample artwork here.
+tasks.named('processResources') {
+    exclude 'data/immersive_paintings/paintings/**'
+}

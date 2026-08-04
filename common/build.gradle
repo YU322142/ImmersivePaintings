@@ -61,3 +61,10 @@ sourceSets.configureEach {
         }
     }
 }
+
+// Do not ship the artwork examples provided by the upstream project.  The
+// painting loader continues to discover player uploads and paintings supplied
+// by external data packs.
+sourceSets.main.resources {
+    exclude 'data/immersive_paintings/paintings/**'
+}

@@ -9,7 +9,7 @@
   "entity.immersive_paintings.graffiti": "涂鸦",
   "entity.immersive_paintings.glow_graffiti": "荧光涂鸦",
   "immersive_paintings.gui.upload": "上传中，剩余%s秒",
-  "immersive_paintings.gui.drop": "在这里投放一张图片，输入文件路径或URL，或选择一个屏幕截图来开始。",
+  "immersive_paintings.gui.drop": "将图片拖到这里，点击浏览选择本地文件，输入网址，或选择截图。",
   "immersive_paintings.gui.graffiti_warning": "图片含有透明度，请用涂鸦代替!",
   "immersive_paintings.gui.filter_all": "全部",
   "immersive_paintings.gui.pixelart": "像素画",
@@ -139,5 +139,12 @@
   "config.immersive_paintings.client.eighthResolutionThreshold": "第八个分辨率阈值",
   "config.immersive_paintings.client.eighthResolutionThreshold.desc": "图像尺寸第八分辨率阈值",
   "config.immersive_paintings.client.thumbResolutionThreshold": "缩略图分辨率阈值",
-  "config.immersive_paintings.client.thumbResolutionThreshold.desc": "缩略图大小分辨率阈值"
+  "config.immersive_paintings.client.thumbResolutionThreshold.desc": "缩略图大小分辨率阈值",
+  "immersive_paintings.gui.browse": "浏览图片...",
+  "immersive_paintings.gui.browse.tooltip": "打开系统文件窗口选择本地图片",
+  "immersive_paintings.gui.url_hint": "图片网址",
+  "immersive_paintings.gui.delete_all_confirm": "再确认（还剩 %s 次）",
+  "immersive_paintings.gui.confirm_admin_deletion_progress": "确定删除该作者的全部作品？已确认 %s/%s 次，请继续点击完成。",
+  "immersive_paintings.gui.browse.opening": "正在打开文件选择窗口...",
+  "immersive_paintings.error.file_dialog_failed": "无法打开系统文件窗口，请改用拖放图片或输入网址。"
 }

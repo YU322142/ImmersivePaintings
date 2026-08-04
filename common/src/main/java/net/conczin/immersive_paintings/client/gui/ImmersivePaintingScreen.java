@@ -35,6 +35,9 @@ import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.server.permissions.Permissions;
 import net.minecraft.util.FormattedCharSequence;
 import org.joml.Matrix3x2fStack;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.PointerBuffer;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -79,6 +82,7 @@ public class ImmersivePaintingScreen extends Screen {
     private int screenshotPage;
 
     private Identifier deletePainting;
+    private int deleteAllConfirmStep;
     private Component error;
     private boolean shouldReProcess;
     private static volatile boolean shouldUpload;
@@ -108,7 +112,8 @@ public class ImmersivePaintingScreen extends Screen {
         super.init();
 
         if (page == null) {
-            setPage(Page.DATAPACKS);
+            // Open directly on the new-painting flow when upload is allowed.
+            setPage(canUploadPainting() ? Page.NEW : Page.YOURS);
         } else {
             refreshPage();
         }
@@ -131,6 +136,9 @@ public class ImmersivePaintingScreen extends Screen {
                 for (FormattedCharSequence t : splits) {
                     graphics.drawCenteredString(font, t, width / 2, y, 0xFFFFFFFF);
                     y += 12;
+                }
+                if (error != null) {
+                    graphics.drawCenteredString(font, error, width / 2, height / 2 + 5, 0xFFFF5555);
                 }
             }
             case CREATE -> {
@@ -163,6 +171,8 @@ public class ImmersivePaintingScreen extends Screen {
                 Component component;
                 if (page == Page.DELETE) {
                     component = Component.translatable("immersive_paintings.gui.confirm_deletion");
+                } else if (deleteAllConfirmStep > 0) {
+                    component = Component.translatable("immersive_paintings.gui.confirm_admin_deletion_progress", deleteAllConfirmStep, 3);
                 } else {
                     component = Component.translatable("immersive_paintings.gui.confirm_admin_deletion");
                 }
@@ -203,7 +213,6 @@ public class ImmersivePaintingScreen extends Screen {
         if (page != Page.CREATE) {
             List<Page> b = new LinkedList<>();
             b.add(Page.YOURS);
-            b.add(Page.DATAPACKS);
 
             if ((Configs.COMMON.showOtherPlayersPaintings && Configs.CLIENT.showOtherPlayersPaintings) || isOp()) {
                 b.add(Page.PLAYERS);
@@ -233,14 +242,27 @@ public class ImmersivePaintingScreen extends Screen {
 
         switch (page) {
             case NEW -> {
-                //URL
-                EditBox editBox = addRenderableWidget(new EditBox(font, width / 2 - 90, height / 2 - 38, 180, 16,
+                // Native file browser for local images
+                addRenderableWidget(Button.builder(
+                                Component.translatable("immersive_paintings.gui.browse"), sender -> openFilePicker())
+                        .bounds(width / 2 - 100, height / 2 - 38, 200, 20)
+                        .tooltip(Tooltip.create(Component.translatable("immersive_paintings.gui.browse.tooltip")))
+                        .build()
+                );
+
+                // Optional URL input for remote images
+                EditBox editBox = addRenderableWidget(new EditBox(font, width / 2 - 100, height / 2 - 12, 145, 16,
                         Component.literal("URL")));
                 editBox.setMaxLength(1024);
+                editBox.setSuggestion("https://...");
 
                 addRenderableWidget(Button.builder(
-                                Component.translatable("immersive_paintings.gui.load"), sender -> loadImage(editBox.getValue()))
-                        .bounds(width / 2 - 50, height / 2 - 15, 100, 20)
+                                Component.translatable("immersive_paintings.gui.load"), sender -> {
+                                    if (!loadImage(editBox.getValue())) {
+                                        setError(Component.translatable("immersive_paintings.error.image_load_failed"));
+                                    }
+                                })
+                        .bounds(width / 2 + 50, height / 2 - 14, 50, 20)
                         .build()
                 );
 
@@ -450,7 +472,7 @@ public class ImmersivePaintingScreen extends Screen {
                         .build()
                 );
             }
-            case YOURS, DATAPACKS, PLAYERS -> {
+            case YOURS, PLAYERS -> {
                 rebuildPaintings();
 
                 // page
@@ -630,22 +652,36 @@ public class ImmersivePaintingScreen extends Screen {
                 );
             }
             case DELETE, ADMIN_DELETE -> {
-                int w = page == Page.ADMIN_DELETE ? 70 : 100;
+                int w = page == Page.ADMIN_DELETE ? 90 : 100;
                 int h = page == Page.ADMIN_DELETE ? 10 : 20;
-                int start = page == Page.ADMIN_DELETE ? -115 : -105;
+                int start = page == Page.ADMIN_DELETE ? -145 : -105;
                 Page p = page == Page.ADMIN_DELETE ? Page.PLAYERS : Page.YOURS;
 
                 List<Button.Builder> buttonList = new ArrayList<>();
-                buttonList.add(Button.builder(Component.translatable("immersive_paintings.gui.cancel"), v -> setPage(p)));
+                buttonList.add(Button.builder(Component.translatable("immersive_paintings.gui.cancel"), v -> {
+                    deleteAllConfirmStep = 0;
+                    setPage(p);
+                }));
                 buttonList.add(Button.builder(Component.translatable("immersive_paintings.gui.delete"), v -> {
                     NetworkHandler.Client.sendToServer(new PaintingDeletePayload(deletePainting, false));
                     setPage(p);
                 }));
 
                 if (page == Page.ADMIN_DELETE) {
-                    buttonList.add(Button.builder(Component.translatable("immersive_paintings.gui.delete_all"), v -> {
-                        NetworkHandler.Client.sendToServer(new PaintingDeletePayload(deletePainting, true));
-                        setPage(Page.PLAYERS);
+                    int remaining = 3 - deleteAllConfirmStep;
+                    Component deleteAllLabel = deleteAllConfirmStep == 0
+                            ? Component.translatable("immersive_paintings.gui.delete_all")
+                            : Component.translatable("immersive_paintings.gui.delete_all_confirm", remaining);
+                    buttonList.add(Button.builder(deleteAllLabel, v -> {
+                        deleteAllConfirmStep++;
+                        if (deleteAllConfirmStep >= 3) {
+                            NetworkHandler.Client.sendToServer(new PaintingDeletePayload(deletePainting, true));
+                            deleteAllConfirmStep = 0;
+                            setPage(Page.PLAYERS);
+                        } else {
+                            // Rebuild so the button label updates with remaining confirms
+                            rebuild();
+                        }
                     }));
                 }
 
@@ -739,6 +775,7 @@ public class ImmersivePaintingScreen extends Screen {
                                     setPage(Page.DELETE);
                                 } else if (page == Page.PLAYERS && isOp()) {
                                     deletePainting = identifier;
+                                    deleteAllConfirmStep = 0;
                                     setPage(Page.ADMIN_DELETE);
                                 }
                             }
@@ -796,7 +833,7 @@ public class ImmersivePaintingScreen extends Screen {
         Page previousPage = this.page;
         this.page = page;
         if (page != previousPage && isPaintingSelectionPage(page)) {
-            filteredResolution = (page == Page.DATAPACKS ? 32 : 0);
+            filteredResolution = 0;
         }
 
         rebuild();
@@ -807,7 +844,7 @@ public class ImmersivePaintingScreen extends Screen {
     }
 
     private static boolean isPaintingSelectionPage(Page page) {
-        return page == Page.DATAPACKS || page == Page.PLAYERS || page == Page.YOURS;
+        return page == Page.PLAYERS || page == Page.YOURS;
     }
 
     private void updateSearch() {
@@ -882,6 +919,119 @@ public class ImmersivePaintingScreen extends Screen {
         }
 
         setError(Component.translatable("immersive_paintings.error.image_load_failed"));
+    }
+
+
+    private void openFilePicker() {
+        // Immediate UI feedback; native dialogs can take a moment.
+        setError(Component.translatable("immersive_paintings.gui.browse.opening"));
+
+        // Release mouse grab first so the OS dialog can sit above GLFW and accept input.
+        Minecraft.getInstance().execute(() -> {
+            if (Minecraft.getInstance().mouseHandler != null) {
+                Minecraft.getInstance().mouseHandler.releaseMouse();
+            }
+
+            // Dedicated thread so the client render thread is not blocked by the modal dialog.
+            Thread thread = new Thread(() -> {
+                String selected = null;
+                Exception failure = null;
+                try {
+                    // Prefer LWJGL tinyfd: works with Minecraft's GLFW window on Windows.
+                    selected = openWithTinyFileDialog();
+                } catch (UnsatisfiedLinkError | NoClassDefFoundError e) {
+                    Main.LOGGER.warn("tinyfd unavailable, falling back to AWT file dialog", e);
+                    try {
+                        selected = openWithAwtFileDialog();
+                    } catch (Exception awtFailure) {
+                        failure = awtFailure;
+                        Main.LOGGER.error("Failed to open AWT file dialog", awtFailure);
+                    }
+                } catch (Exception e) {
+                    failure = e;
+                    Main.LOGGER.error("Failed to open native file dialog", e);
+                }
+
+                final String path = selected;
+                final Exception errorToReport = failure;
+                Minecraft.getInstance().execute(() -> {
+                    if (path != null && !path.isBlank()) {
+                        setError(null);
+                        if (!loadImage(path)) {
+                            setError(Component.translatable("immersive_paintings.error.image_load_failed"));
+                        }
+                    } else if (errorToReport != null) {
+                        setError(Component.translatable("immersive_paintings.error.file_dialog_failed"));
+                    } else {
+                        // User cancelled or dialog returned nothing.
+                        setError(null);
+                    }
+                });
+            }, "immersive-paintings-file-dialog");
+            thread.setDaemon(true);
+            thread.start();
+        });
+    }
+
+    private static String openWithTinyFileDialog() {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            PointerBuffer filters = stack.mallocPointer(6);
+            filters.put(stack.UTF8("*.png"));
+            filters.put(stack.UTF8("*.jpg"));
+            filters.put(stack.UTF8("*.jpeg"));
+            filters.put(stack.UTF8("*.gif"));
+            filters.put(stack.UTF8("*.bmp"));
+            filters.put(stack.UTF8("*.webp"));
+            filters.flip();
+
+            String title = Component.translatable("immersive_paintings.gui.browse").getString();
+            String result = TinyFileDialogs.tinyfd_openFileDialog(
+                    title,
+                    "",
+                    filters,
+                    "Images",
+                    false
+            );
+            if (result == null || result.isBlank()) {
+                return null;
+            }
+            // tinyfd can return multiple paths separated by '|'; we only take the first.
+            int sep = result.indexOf('|');
+            return sep >= 0 ? result.substring(0, sep) : result;
+        }
+    }
+
+    private static String openWithAwtFileDialog() {
+        try {
+            // Only effective before AWT toolkit init; still attempt for non-headless launches.
+            System.setProperty("java.awt.headless", "false");
+
+            java.awt.FileDialog dialog = new java.awt.FileDialog((java.awt.Frame) null,
+                    Component.translatable("immersive_paintings.gui.browse").getString(),
+                    java.awt.FileDialog.LOAD);
+            dialog.setFilenameFilter((dir, name) -> {
+                String lower = name.toLowerCase(Locale.ROOT);
+                return lower.endsWith(".png")
+                        || lower.endsWith(".jpg")
+                        || lower.endsWith(".jpeg")
+                        || lower.endsWith(".gif")
+                        || lower.endsWith(".bmp")
+                        || lower.endsWith(".webp");
+            });
+            dialog.setMultipleMode(false);
+            dialog.setAlwaysOnTop(true);
+            dialog.setVisible(true);
+
+            String file = dialog.getFile();
+            String directory = dialog.getDirectory();
+            if (file == null || directory == null) {
+                return null;
+            }
+            return new File(directory, file).getAbsolutePath();
+        } catch (Throwable t) {
+            Main.LOGGER.error("AWT file dialog failed", t);
+            throw new RuntimeException(t);
+        }
     }
 
     private boolean loadImage(String path) {

@@ -372,7 +372,7 @@ public class ImageManipulations {
         public double offsetY;
         public double zoom;
         public boolean pixelArt;
-        public boolean hidden = true;
+        public boolean hidden = false;
         public boolean nsfw;
 
         public PixelatorSettings(double dither, int colors, int resolution, int width, int height, double offsetX, double offsetY, double zoom, boolean pixelArt) {
