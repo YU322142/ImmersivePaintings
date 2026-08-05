@@ -9,6 +9,8 @@
 * Corrected page clamping and refresh behavior in screenshot and painting lists
 * Improved English and Simplified Chinese local-upload interface text
 * Retained the upstream GPL-3.0 license, history, and attribution
+* Added third-party notices and the TwelveMonkeys BSD-3-Clause license to source
+  and binary distributions
 
 # 0.7.8
 

@@ -80,6 +80,10 @@ upstream Git history and is distributed under the
 Modified source files and the commit history identify the fork-specific changes
 and their dates. Redistributions must continue to comply with GPL-3.0.
 
+Bundled third-party components, their versions, source locations, and license
+terms are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Complete
+third-party license texts are retained in the [licenses](licenses) directory.
+
 ## 中文说明
 
 这是基于

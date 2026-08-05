@@ -56,11 +56,23 @@ sourcesJar {
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${mod_name}" }
     }
+
+    from(rootProject.file('THIRD_PARTY_NOTICES.md'))
+
+    from(rootProject.file('licenses')) {
+        into 'META-INF/licenses'
+    }
 }
 
 jar {
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${mod_name}" }
+    }
+
+    from(rootProject.file('THIRD_PARTY_NOTICES.md'))
+
+    from(rootProject.file('licenses')) {
+        into 'META-INF/licenses'
     }
 
     manifest {
