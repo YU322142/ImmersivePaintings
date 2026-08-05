@@ -55,15 +55,18 @@ import java.util.concurrent.Executors;
 
 public class ImmersivePaintingScreen extends Screen {
     private static final int SCREENSHOTS_PER_PAGE = 5;
+    private static final int PAINTINGS_PER_ROW = 8;
+    private static final int PAINTING_ROWS = 3;
+    private static final int PAINTINGS_PER_PAGE = PAINTINGS_PER_ROW * PAINTING_ROWS;
 
     private final static ExecutorService service = Executors.newFixedThreadPool(1);
 
     public final ImmersivePaintingEntity entity;
 
-    private static String filteredString = "";
-    private static int filteredResolution = 32;
-    private static int filteredWidth = 0;
-    private static int filteredHeight = 0;
+    private String filteredString = "";
+    private int filteredResolution;
+    private int filteredWidth;
+    private int filteredHeight;
     private final List<Identifier> filteredPaintings = new ArrayList<>();
 
     private int selectionPage;
@@ -111,18 +114,25 @@ public class ImmersivePaintingScreen extends Screen {
     protected void init() {
         super.init();
 
+        reloadScreenshots();
+
         if (page == null) {
             // Open directly on the new-painting flow when upload is allowed.
             setPage(canUploadPainting() ? Page.NEW : Page.YOURS);
         } else {
             refreshPage();
         }
+    }
 
-        //reload screenshots
+    private void reloadScreenshots() {
         File file = new File(Minecraft.getInstance().gameDirectory, "screenshots");
-        File[] files = file.listFiles(v -> v.getName().endsWith(".png"));
+        File[] files = file.listFiles(v -> v.isFile() && v.getName().toLowerCase(Locale.ROOT).endsWith(".png"));
         if (files != null) {
-            screenshots = Arrays.stream(files).toList();
+            screenshots = Arrays.stream(files)
+                    .sorted(Comparator.comparingLong(File::lastModified).reversed().thenComparing(File::getName))
+                    .toList();
+        } else {
+            screenshots = List.of();
         }
     }
 
@@ -500,7 +510,8 @@ public class ImmersivePaintingScreen extends Screen {
                 //search
                 EditBox editBox = addRenderableWidget(new EditBox(font, width / 2 - 65, height / 2 - 88, 130, 16, Component.translatable("immersive_paintings.gui.search")));
                 editBox.setMaxLength(64);
-                editBox.setSuggestion("search");
+                editBox.setValue(filteredString);
+                editBox.setSuggestion(filteredString.isEmpty() ? "search" : null);
                 editBox.setResponder(s -> {
                     filteredString = s;
                     updateSearch();
@@ -517,7 +528,6 @@ public class ImmersivePaintingScreen extends Screen {
                         .tooltip(Tooltip.create(Component.translatable("immersive_paintings.gui.tooltip.filter_resolution")))
                         .build()
                 );
-
                 Button allWidget = addRenderableWidget(Button
                         .builder(Component.translatable("immersive_paintings.gui.filter_all"), sender -> {
                             filteredResolution = 0;
@@ -530,6 +540,7 @@ public class ImmersivePaintingScreen extends Screen {
                         .tooltip(Tooltip.create(Component.translatable("immersive_paintings.gui.tooltip.filter_resolution")))
                         .build()
                 );
+                allWidget.active = filteredResolution != 0;
 
                 addRenderableWidget(Button
                         .builder(Component.literal("<"), sender -> {
@@ -560,7 +571,8 @@ public class ImmersivePaintingScreen extends Screen {
                 //width
                 EditBox widthWidget = addRenderableWidget(new EditBox(font, width / 2 + 80, height / 2 - 88, 40, 16, Component.translatable("immersive_paintings.gui.filter_width")));
                 widthWidget.setMaxLength(2);
-                widthWidget.setSuggestion("width");
+                widthWidget.setValue(filteredWidth == 0 ? "" : String.valueOf(filteredWidth));
+                widthWidget.setSuggestion(filteredWidth == 0 ? "width" : null);
                 widthWidget.setResponder(s -> {
                     try {
                         filteredWidth = Integer.parseInt(s);
@@ -574,7 +586,8 @@ public class ImmersivePaintingScreen extends Screen {
                 //height
                 EditBox heightWidget = addRenderableWidget(new EditBox(font, width / 2 + 80 + 40, height / 2 - 88, 40, 16, Component.translatable("immersive_paintings.gui.filter_height")));
                 heightWidget.setMaxLength(2);
-                heightWidget.setSuggestion("height");
+                heightWidget.setValue(filteredHeight == 0 ? "" : String.valueOf(filteredHeight));
+                heightWidget.setSuggestion(filteredHeight == 0 ? "height" : null);
                 heightWidget.setResponder(s -> {
                     try {
                         filteredHeight = Integer.parseInt(s);
@@ -730,9 +743,9 @@ public class ImmersivePaintingScreen extends Screen {
         paintingWidgets.clear();
 
         // paintings
-        for (int y = 0; y < 3; y++) {
-            for (int x = 0; x < 8; x++) {
-                int i = y * 8 + x + selectionPage * 24;
+        for (int y = 0; y < PAINTING_ROWS; y++) {
+            for (int x = 0; x < PAINTINGS_PER_ROW; x++) {
+                int i = y * PAINTINGS_PER_ROW + x + selectionPage * PAINTINGS_PER_PAGE;
                 if (i >= 0 && i < filteredPaintings.size()) {
                     Identifier identifier = filteredPaintings.get(i);
 
@@ -819,7 +832,7 @@ public class ImmersivePaintingScreen extends Screen {
 
                 paintingWidget.setTooltip(Tooltip.create(Component.literal(file.getName())));
 
-                Identifier identifier = Main.locate("screenshot_" + x);
+                Identifier identifier = Main.locate("screenshot_" + i);
                 paintingWidgets.put(identifier, paintingWidget);
 
                 service.submit(() -> paintingWidget.update(identifier, loadImage(file.getPath(), identifier)));
@@ -833,7 +846,8 @@ public class ImmersivePaintingScreen extends Screen {
         Page previousPage = this.page;
         this.page = page;
         if (page != previousPage && isPaintingSelectionPage(page)) {
-            filteredResolution = 0;
+            resetFilters();
+            selectionPage = 0;
         }
 
         rebuild();
@@ -845,6 +859,13 @@ public class ImmersivePaintingScreen extends Screen {
 
     private static boolean isPaintingSelectionPage(Page page) {
         return page == Page.PLAYERS || page == Page.YOURS;
+    }
+
+    private void resetFilters() {
+        filteredString = "";
+        filteredResolution = 0;
+        filteredWidth = 0;
+        filteredHeight = 0;
     }
 
     private void updateSearch() {
@@ -887,20 +908,32 @@ public class ImmersivePaintingScreen extends Screen {
     }
 
     private void setSelectionPage(int p) {
-        int maxPages = (int) Math.ceil(filteredPaintings.size() / 24.0);
-        selectionPage = Math.min(maxPages - 1, Math.max(0, p));
+        int maxPages = pageCount(filteredPaintings.size(), PAINTINGS_PER_PAGE);
+        selectionPage = clampPage(p, maxPages);
         rebuildPaintings();
-        pageWidget.setMessage(Component.literal((selectionPage + 1) + " / " + maxPages));
+        pageWidget.setMessage(pageMessage(selectionPage, maxPages));
     }
 
     private void setScreenshotPage(int p) {
-        int maxPages = (int) Math.ceil(screenshots.size() / 8.0);
+        int maxPages = pageCount(screenshots.size(), SCREENSHOTS_PER_PAGE);
         int oldPage = screenshotPage;
-        screenshotPage = Math.min(maxPages - 1, Math.max(0, p));
+        screenshotPage = clampPage(p, maxPages);
         if (oldPage != screenshotPage) {
             rebuildScreenshots();
         }
-        pageWidget.setMessage(Component.literal((screenshotPage + 1) + " / " + maxPages));
+        pageWidget.setMessage(pageMessage(screenshotPage, maxPages));
+    }
+
+    private static int pageCount(int itemCount, int itemsPerPage) {
+        return (itemCount + itemsPerPage - 1) / itemsPerPage;
+    }
+
+    private static int clampPage(int requestedPage, int pageCount) {
+        return pageCount == 0 ? 0 : Math.clamp(requestedPage, 0, pageCount - 1);
+    }
+
+    private static Component pageMessage(int currentPage, int pageCount) {
+        return Component.literal(pageCount == 0 ? "0 / 0" : (currentPage + 1) + " / " + pageCount);
     }
 
     @Override
