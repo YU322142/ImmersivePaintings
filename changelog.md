@@ -1,3 +1,15 @@
+# 0.7.9+1.21.11 (community fork)
+
+* Added a native local image picker with Tiny File Dialogs and an AWT fallback
+* Opened the new-painting workflow directly when upload permission is available
+* Fixed the screenshot page count showing stale 0 / 0 data on first open
+* Standardized screenshot pagination at five entries per page
+* Fixed the final partial screenshot page being omitted
+* Fixed screenshot thumbnail texture identifiers colliding or being reused
+* Corrected page clamping and refresh behavior in screenshot and painting lists
+* Improved English and Simplified Chinese local-upload interface text
+* Retained the upstream GPL-3.0 license, history, and attribution
+
 # 0.7.8
 
 * Fixed odd resolution filter behavior
