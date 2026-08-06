@@ -12,9 +12,17 @@ browser workflow.
 > supported by the original author. Upstream project names and links are kept
 > for attribution and compatibility reference.
 
+## Changes in 0.7.12+1.21.11
+
+- Targets paintings with the same crosshair-only lifecycle and distance
+  settings used by MineAstr 0.6.24 sign overlays.
+- Detects non-colliding painting entities even when Minecraft reports the
+  backing block as the vanilla hit result.
+- Requires MineAstr 0.6.24 on both client and server for image translation.
+
 ## Changes in 0.7.10+1.21.11
 
-- Adds optional Fabric integration with MineAstr 0.6.21 and newer.
+- Adds optional Fabric integration with MineAstr 0.6.24 and newer.
 - Requests OCR translation only for the painting currently under the
   crosshair and only while MineAstr game translations are enabled.
 - Compresses the painting to a bounded JPEG before MineAstr forwards it to
@@ -48,17 +56,18 @@ See [changelog.md](changelog.md) for the upstream history and fork changes.
 | Fabric Loader | 0.18.4 |
 | Fabric API | 0.141.1+1.21.11 |
 | NeoForge | 21.11.36-beta |
-| MineAstr (optional, Fabric) | 0.6.21 or newer |
+| MineAstr (optional, Fabric) | 0.6.24 or newer |
 
 Both Fabric and NeoForge source sets are included.
 
 ### Optional MineAstr image translation
 
-On Fabric, installing MineAstr on both the client and server enables image
-translation for targeted paintings when MineAstr's **Game translations**
-setting is on and its AstrBot bridge is connected. Immersive Paintings sends
-a compressed JPEG through MineAstr's API; MineAstr and AstrBot determine the
-configured translation provider and data handling. Disable **Game
+On Fabric, installing MineAstr 0.6.24 on both the client and server, together
+with the matching AstrBot plugin, enables image translation for targeted
+paintings when MineAstr's **Game translations** and floating translation
+settings are on and its AstrBot bridge is connected. Immersive Paintings
+sends a compressed JPEG through MineAstr's API; MineAstr and AstrBot determine
+the configured translation provider and data handling. Disable **Game
 translations** in MineAstr before entering a world to prevent painting images
 from being submitted for translation.
 

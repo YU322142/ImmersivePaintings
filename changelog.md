@@ -1,3 +1,9 @@
+# 0.7.12+1.21.11 (community fork)
+
+* Align painting targeting and maximum distance with MineAstr 0.6.24
+* Detect non-colliding paintings along the current vanilla crosshair ray, including when the backing block owns the hit result
+* Keep target visibility in the compatibility bridge so MineAstr does not reject an already validated painting target a second time
+
 # 0.7.11+1.21.11 (community fork)
 
 * Uses the server painting hash as the MineAstr translation cache identity

@@ -10,7 +10,10 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import javax.imageio.IIOImage;
@@ -51,6 +54,8 @@ public final class MineAstrTranslationCompat {
     private static final String MINEASTR_MOD_ID = "mineastr";
     private static final int MAX_IMAGE_BYTES = 768 * 1024;
     private static final int MAX_IMAGE_DIMENSION = 2048;
+    private static final double TARGET_RAY_EXTRA_DISTANCE = 0.25D;
+    private static final double DEFAULT_TARGET_DISTANCE = 8.0D;
     private static final long RETRY_DELAY_MS = 30_000L;
     private static final String CONTEXT =
             "This image is displayed by Immersive Paintings. Preserve proper nouns and line breaks.";
@@ -72,6 +77,8 @@ public final class MineAstrTranslationCompat {
     private static Method resultTranslations;
     private static Method showEntityTranslation;
     private static Method removeTranslation;
+    private static Method floatingTranslationsEnabled;
+    private static Method floatingTranslationMaxDistance;
     private static Object translationsEnabledValue;
     private static Method translationsEnabledGetter;
 
@@ -101,13 +108,16 @@ public final class MineAstrTranslationCompat {
                     String.class);
             resultSourceText = resultClass.getMethod("sourceText");
             resultTranslations = resultClass.getMethod("translations");
+            floatingTranslationsEnabled = clientClass.getMethod("areFloatingTranslationOverlaysEnabled");
+            floatingTranslationMaxDistance = clientClass.getMethod("floatingTranslationMaxDistance");
             showEntityTranslation = displayClass.getMethod(
                     "showEntityTranslation",
                     String.class,
                     int.class,
                     Vec3.class,
                     String.class,
-                    String.class);
+                    String.class,
+                    boolean.class);
             removeTranslation = displayClass.getMethod("remove", String.class);
             findTranslationsEnabledGetter();
 
@@ -116,7 +126,7 @@ public final class MineAstrTranslationCompat {
             Main.LOGGER.info("Enabled optional MineAstr painting translation integration");
         } catch (ReflectiveOperationException | LinkageError error) {
             Main.LOGGER.warn(
-                    "MineAstr is installed but its image translation API is unavailable; version 0.6.21 or newer is required",
+                    "MineAstr is installed but its image translation API is unavailable; version 0.6.24 or newer is required",
                     error);
         }
     }
@@ -144,9 +154,13 @@ public final class MineAstrTranslationCompat {
         if (!translationsEnabled()
                 || client.level == null
                 || client.player == null
-                || client.screen != null
-                || !(client.hitResult instanceof EntityHitResult hit)
-                || !(hit.getEntity() instanceof ImmersivePaintingEntity painting)) {
+                || client.screen != null) {
+            removeActiveDisplay();
+            return;
+        }
+
+        ImmersivePaintingEntity painting = getTargetedPainting(client);
+        if (painting == null) {
             removeActiveDisplay();
             return;
         }
@@ -197,11 +211,62 @@ public final class MineAstrTranslationCompat {
             return true;
         }
         try {
-            return (boolean) translationsEnabledGetter.invoke(translationsEnabledValue);
+            return (boolean) translationsEnabledGetter.invoke(translationsEnabledValue)
+                    && (boolean) floatingTranslationsEnabled.invoke(null);
         } catch (ReflectiveOperationException | RuntimeException error) {
             Main.LOGGER.debug("Unable to read MineAstr's game translation preference", error);
             return false;
         }
+    }
+
+    private static ImmersivePaintingEntity getTargetedPainting(Minecraft client) {
+        Vec3 eyePosition = client.player.getEyePosition();
+        double maxDistance = Math.min(
+                mineAstrTargetDistance(),
+                client.player.entityInteractionRange());
+        double maxDistanceSquared = maxDistance * maxDistance;
+
+        if (client.hitResult instanceof EntityHitResult hit
+                && hit.getEntity() instanceof ImmersivePaintingEntity painting
+                && hit.getLocation().distanceToSqr(eyePosition) <= maxDistanceSquared) {
+            return painting;
+        }
+
+        Vec3 viewVector = client.player.getViewVector(1.0F);
+        double rayDistance = maxDistance;
+        HitResult vanillaHit = client.hitResult;
+        if (vanillaHit != null) {
+            double vanillaDistance = eyePosition.distanceTo(vanillaHit.getLocation());
+            if (Double.isFinite(vanillaDistance)) {
+                rayDistance = Math.min(rayDistance, vanillaDistance + TARGET_RAY_EXTRA_DISTANCE);
+            }
+        }
+        Vec3 end = eyePosition.add(viewVector.scale(rayDistance));
+        AABB searchBounds = client.player.getBoundingBox()
+                .expandTowards(viewVector.scale(rayDistance))
+                .inflate(1.0D);
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(
+                client.player,
+                eyePosition,
+                end,
+                searchBounds,
+                entity -> entity instanceof ImmersivePaintingEntity,
+                rayDistance * rayDistance);
+        return hit != null && hit.getEntity() instanceof ImmersivePaintingEntity painting
+                ? painting
+                : null;
+    }
+
+    private static double mineAstrTargetDistance() {
+        try {
+            Object value = floatingTranslationMaxDistance.invoke(null);
+            if (value instanceof Number number) {
+                return Math.max(1.0D, number.doubleValue());
+            }
+        } catch (ReflectiveOperationException | RuntimeException error) {
+            Main.LOGGER.debug("Unable to read MineAstr's floating translation distance", error);
+        }
+        return DEFAULT_TARGET_DISTANCE;
     }
 
     private static void requestTranslation(
@@ -310,7 +375,8 @@ public final class MineAstrTranslationCompat {
                     painting.getId(),
                     new Vec3(0.0, painting.getBbHeight() + 0.2, 0.0),
                     translation.translated(),
-                    translation.original());
+                    translation.original(),
+                    false);
         } catch (ReflectiveOperationException | RuntimeException error) {
             Main.LOGGER.warn("Failed to submit a painting translation to MineAstr's display API", error);
             removeActiveDisplay();

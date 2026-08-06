@@ -35,6 +35,6 @@
   },
   "suggests": {
     "modmenu": ">=${modmenu_version}",
-    "mineastr": ">=0.6.21"
+    "mineastr": ">=0.6.24"
   }
 }
