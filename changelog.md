@@ -1,3 +1,9 @@
+# 0.7.11+1.21.11 (community fork)
+
+* Uses the server painting hash as the MineAstr translation cache identity
+* Shares one translation between the full image, thumbnail, and Motive aliases
+* Persists up to 512 translation entries per client cache; language is part of the key
+
 # 0.7.10+1.21.11 (community fork)
 
 * Added optional MineAstr 0.6.21+ image translation integration on Fabric

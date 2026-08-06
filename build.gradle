@@ -7,8 +7,16 @@ plugins {
 
 String getAppVersion() {
     try {
-        def proc = "git tag --points-at HEAD".execute()
-        def tag = proc.text.trim()
+        def gitDirectory = project.rootDir
+        def gitOptions = ['-c', "safe.directory=${gitDirectory.absolutePath}"]
+        def exact = (['git'] + gitOptions + ['tag', '--points-at', 'HEAD']).execute(null, gitDirectory)
+        exact.waitFor()
+        def tag = exact.exitValue() == 0 ? exact.text.trim() : ''
+        if (tag.isEmpty()) {
+            def latest = (['git'] + gitOptions + ['describe', '--tags', '--abbrev=0']).execute(null, gitDirectory)
+            latest.waitFor()
+            tag = latest.exitValue() == 0 ? latest.text.trim() : ''
+        }
         if (tag.isEmpty()) return "0.0.1"
         return tag.split('\\+')[0]
     } catch (Exception e) {

@@ -5,6 +5,7 @@ import net.conczin.immersive_paintings.Main;
 import net.conczin.immersive_paintings.Painting;
 import net.conczin.immersive_paintings.entity.ImmersivePaintingEntity;
 import net.conczin.immersive_paintings.registry.Configs;
+import net.conczin.immersive_paintings.util.Cache;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -21,10 +22,15 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -57,7 +63,7 @@ public final class MineAstrTranslationCompat {
         return thread;
     });
 
-    private static final Map<TranslationKey, Translation> TRANSLATIONS = new HashMap<>();
+    private static final Cache<TranslationKey, Translation> TRANSLATIONS = new TranslationCache();
     private static final Map<TranslationKey, Long> RETRY_AT = new HashMap<>();
     private static final Set<TranslationKey> PENDING = new HashSet<>();
 
@@ -72,7 +78,6 @@ public final class MineAstrTranslationCompat {
     private static boolean available;
     private static Object activeLevel;
     private static String activeDisplayId;
-    private static long generation;
 
     private MineAstrTranslationCompat() {
     }
@@ -166,8 +171,8 @@ public final class MineAstrTranslationCompat {
             return;
         }
 
-        TranslationKey key = new TranslationKey(motive, language);
-        Translation translation = TRANSLATIONS.get(key);
+        TranslationKey key = new TranslationKey(getImageCacheKey(motive), language);
+        Translation translation = TRANSLATIONS.get(key).orElse(null);
         if (translation != null) {
             if (translation.translated().isBlank()) {
                 removeActiveDisplay();
@@ -206,8 +211,6 @@ public final class MineAstrTranslationCompat {
         if (!PENDING.add(key)) {
             return;
         }
-        long requestGeneration = generation;
-
         CompletableFuture.supplyAsync(() -> {
             try {
                 return encodeForMineAstr(image);
@@ -216,7 +219,7 @@ public final class MineAstrTranslationCompat {
             }
         }, IMAGE_ENCODER).thenCompose(bytes -> invokeTranslationRequest(bytes, key.language()))
                 .whenComplete((result, error) -> client.execute(() ->
-                        finishRequest(key, requestGeneration, result, error)));
+                        finishRequest(key, result, error)));
     }
 
     @SuppressWarnings("unchecked")
@@ -244,16 +247,12 @@ public final class MineAstrTranslationCompat {
 
     private static void finishRequest(
             TranslationKey key,
-            long requestGeneration,
             Object result,
             Throwable error) {
         PENDING.remove(key);
-        if (requestGeneration != generation) {
-            return;
-        }
         if (error != null) {
             RETRY_AT.put(key, System.currentTimeMillis() + RETRY_DELAY_MS);
-            Main.LOGGER.debug("MineAstr image translation failed for {}", key.motive(), unwrap(error));
+            Main.LOGGER.debug("MineAstr image translation failed for {}", key.imageKey(), unwrap(error));
             return;
         }
 
@@ -266,7 +265,7 @@ public final class MineAstrTranslationCompat {
             if (translated.isBlank()) {
                 translated = source;
             }
-            TRANSLATIONS.put(key, new Translation(translated.strip(), source.strip()));
+            TRANSLATIONS.set(key, new Translation(translated.strip(), source.strip()));
             RETRY_AT.remove(key);
         } catch (ReflectiveOperationException | RuntimeException extractionError) {
             RETRY_AT.put(key, System.currentTimeMillis() + RETRY_DELAY_MS);
@@ -319,12 +318,23 @@ public final class MineAstrTranslationCompat {
     }
 
     private static void resetForLevel(Object level) {
-        generation++;
         activeLevel = level;
-        TRANSLATIONS.clear();
         RETRY_AT.clear();
-        PENDING.clear();
         removeActiveDisplay();
+    }
+
+    private static String getImageCacheKey(Identifier motive) {
+        // A custom painting has one metadata hash plus full/thumbnail server cache
+        // entries. The metadata hash is the common identity for all three.
+        return ClientPaintingManager.getPainting(motive)
+                .map(painting -> {
+                    String hash = painting.hash();
+                    if (!hash.isBlank()) {
+                        return painting.type().getSerializedName().toLowerCase(Locale.ROOT) + ":" + hash;
+                    }
+                    return motive.toString();
+                })
+                .orElse(motive.toString());
     }
 
     private static void removeActiveDisplay() {
@@ -418,7 +428,58 @@ public final class MineAstrTranslationCompat {
         return current;
     }
 
-    private record TranslationKey(Identifier motive, String language) {
+    private static final class TranslationCache extends Cache<TranslationKey, Translation> {
+        private static final int FORMAT_VERSION = 1;
+
+        private TranslationCache() {
+            super(512);
+        }
+
+        @Override
+        public String getCachePath(TranslationKey key) {
+            return "translations-v1/" + digest(key.imageKey() + "\u0000" + key.language()) + ".bin";
+        }
+
+        @Override
+        public Translation decode(byte[] bytes) throws IOException {
+            try (DataInputStream input = new DataInputStream(new ByteArrayInputStream(bytes))) {
+                if (input.readInt() != FORMAT_VERSION) {
+                    throw new IOException("Unsupported MineAstr translation cache version");
+                }
+                return new Translation(input.readUTF(), input.readUTF());
+            }
+        }
+
+        @Override
+        public byte[] encode(Translation translation) {
+            try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                 DataOutputStream output = new DataOutputStream(bytes)) {
+                output.writeInt(FORMAT_VERSION);
+                output.writeUTF(translation.translated());
+                output.writeUTF(translation.original());
+                output.flush();
+                return bytes.toByteArray();
+            } catch (IOException error) {
+                Main.LOGGER.warn("Failed to encode MineAstr translation cache entry", error);
+                return null;
+            }
+        }
+    }
+
+    private static String digest(String value) {
+        try {
+            byte[] bytes = MessageDigest.getInstance("SHA-256").digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder result = new StringBuilder(bytes.length * 2);
+            for (byte b : bytes) {
+                result.append(String.format("%02x", b));
+            }
+            return result.toString();
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 is unavailable", error);
+        }
+    }
+
+    private record TranslationKey(String imageKey, String language) {
     }
 
     private record Translation(String translated, String original) {
