@@ -1,5 +1,6 @@
 package net.conczin.immersive_paintings.fabric;
 
+import net.conczin.immersive_paintings.fabric.compat.MineAstrTranslationCompat;
 import net.conczin.immersive_paintings.registry.Renderers;
 import net.conczin.immersive_paintings.fabric.resources.FabricFrameLoader;
 import net.conczin.immersive_paintings.fabric.resources.FabricObjectLoader;
@@ -17,6 +18,7 @@ public final class ClientFabric implements ClientModInitializer {
     public void onInitializeClient() {
         NetworkHandler.Client.registerSender(ClientPlayNetworking::send);
         Renderers.register(EntityRendererRegistry::register);
+        MineAstrTranslationCompat.initialize();
 
         ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new FabricObjectLoader());
         ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(new FabricFrameLoader());

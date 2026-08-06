@@ -34,6 +34,7 @@
     "fzzy_config": ">=${fzzy_config_version}"
   },
   "suggests": {
-    "modmenu": ">=${modmenu_version}"
+    "modmenu": ">=${modmenu_version}",
+    "mineastr": ">=0.6.21"
   }
 }

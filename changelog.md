@@ -1,3 +1,13 @@
+# 0.7.10+1.21.11 (community fork)
+
+* Added optional MineAstr 0.6.21+ image translation integration on Fabric
+* Translates only the painting targeted by the crosshair while MineAstr game
+  translations are enabled
+* Compresses images below MineAstr's 768 KiB request limit off the client
+  thread and caches translation results for the current level
+* Uses MineAstr's own world-space translation display; no MineAstr code or JAR
+  is bundled
+
 # 0.7.9+1.21.11 (community fork)
 
 * Added a native local image picker with Tiny File Dialogs and an AWT fallback
