@@ -32,6 +32,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -50,6 +53,9 @@ import java.util.stream.Collectors;
 
 public class ImmersivePaintingScreen extends Screen {
     private static final int SCREENSHOTS_PER_PAGE = 5;
+    private static final int PAINTINGS_PER_ROW = 8;
+    private static final int PAINTING_ROWS = 3;
+    private static final int PAINTINGS_PER_PAGE = PAINTINGS_PER_ROW * PAINTING_ROWS;
 
     final int minResolution;
     final int maxResolution;
@@ -58,10 +64,10 @@ public class ImmersivePaintingScreen extends Screen {
 
     public final ImmersivePaintingEntity entity;
 
-    private static String filteredString = "";
-    private static int filteredResolution = 32;
-    private static int filteredWidth = 0;
-    private static int filteredHeight = 0;
+    private String filteredString = "";
+    private int filteredResolution;
+    private int filteredWidth;
+    private int filteredHeight;
     private final List<ResourceLocation> filteredPaintings = new ArrayList<>();
 
     private int selectionPage;
@@ -80,6 +86,7 @@ public class ImmersivePaintingScreen extends Screen {
     private int screenshotPage;
 
     private ResourceLocation deletePainting;
+    private int deleteAllConfirmStep;
     private Component error;
     private boolean shouldReProcess;
     private static volatile boolean shouldUpload;
@@ -114,17 +121,24 @@ public class ImmersivePaintingScreen extends Screen {
     protected void init() {
         super.init();
 
+        reloadScreenshots();
+
         if (page == null) {
-            setPage(Page.DATAPACKS);
+            setPage(canUploadPainting() ? Page.NEW : Page.YOURS);
         } else {
             refreshPage();
         }
+    }
 
-        //reload screenshots
+    private void reloadScreenshots() {
         File file = new File(Minecraft.getInstance().gameDirectory, "screenshots");
-        File[] files = file.listFiles(v -> v.getName().endsWith(".png"));
+        File[] files = file.listFiles(v -> v.isFile() && v.getName().toLowerCase(Locale.ROOT).endsWith(".png"));
         if (files != null) {
-            screenshots = Arrays.stream(files).toList();
+            screenshots = Arrays.stream(files)
+                    .sorted(Comparator.comparingLong(File::lastModified).reversed().thenComparing(File::getName))
+                    .toList();
+        } else {
+            screenshots = List.of();
         }
     }
 
@@ -140,6 +154,9 @@ public class ImmersivePaintingScreen extends Screen {
                 for (Component text : wrap) {
                     graphics.drawCenteredString(font, text, width / 2, y, 0xFFFFFFFF);
                     y += 12;
+                }
+                if (error != null) {
+                    graphics.drawCenteredString(font, error, width / 2, height / 2 + 5, 0xFFFF5555);
                 }
             }
             case CREATE -> {
@@ -165,18 +182,20 @@ public class ImmersivePaintingScreen extends Screen {
                 graphics.blit(Main.locate("temp_pixelated"), 0, 0, 0, 0, tw, th, tw, th);
                 poseStack.popPose();
             }
-            case DELETE -> {
-                graphics.fill(width / 2 - 160, height / 2 - 50, width / 2 + 160, height / 2 + 50, 0x88000000);
-                List<Component> wrap = wrap(Component.translatable("immersive_paintings.gui.confirm_deletion"), 300);
-                int y = height / 2 - 35;
-                for (Component t : wrap) {
-                    graphics.drawCenteredString(font, t, width / 2, y, 0XFFFFFF);
-                    y += 15;
+            case DELETE, ADMIN_DELETE -> {
+                Component component;
+                if (page == Page.DELETE) {
+                    component = Component.translatable("immersive_paintings.gui.confirm_deletion");
+                } else if (deleteAllConfirmStep > 0) {
+                    component = Component.translatable(
+                            "immersive_paintings.gui.confirm_admin_deletion_progress",
+                            deleteAllConfirmStep,
+                            3);
+                } else {
+                    component = Component.translatable("immersive_paintings.gui.confirm_admin_deletion");
                 }
-            }
-            case ADMIN_DELETE -> {
                 graphics.fill(width / 2 - 160, height / 2 - 50, width / 2 + 160, height / 2 + 50, 0x88000000);
-                List<Component> wrap = wrap(Component.translatable("immersive_paintings.gui.confirm_admin_deletion"), 300);
+                List<Component> wrap = wrap(component, 300);
                 int y = height / 2 - 35;
                 for (Component t : wrap) {
                     graphics.drawCenteredString(font, t, width / 2, y, 0XFFFFFF);
@@ -210,8 +229,7 @@ public class ImmersivePaintingScreen extends Screen {
         if (page != Page.CREATE) {
             List<Page> b = new LinkedList<>();
             b.add(Page.YOURS);
-            b.add(Page.DATAPACKS);
-            if (showOtherPlayersPaintings || isOp()) {
+            if ((Configs.COMMON.showOtherPlayersPaintings && Configs.CLIENT.showOtherPlayersPaintings) || isOp()) {
                 b.add(Page.PLAYERS);
             }
             if (Minecraft.getInstance().player == null || Minecraft.getInstance().player.hasPermissions(uploadPermissionLevel)) {
@@ -236,14 +254,25 @@ public class ImmersivePaintingScreen extends Screen {
 
         switch (page) {
             case NEW -> {
-                //URL
-                EditBox editBox = addRenderableWidget(new EditBox(font, width / 2 - 90, height / 2 - 38, 180, 16,
+                addRenderableWidget(Button.builder(
+                                Component.translatable("immersive_paintings.gui.browse"), sender -> openFilePicker())
+                        .bounds(width / 2 - 100, height / 2 - 38, 200, 20)
+                        .tooltip(Tooltip.create(Component.translatable("immersive_paintings.gui.browse.tooltip")))
+                        .build()
+                );
+
+                EditBox editBox = addRenderableWidget(new EditBox(font, width / 2 - 100, height / 2 - 12, 145, 16,
                         Component.literal("URL")));
                 editBox.setMaxLength(1024);
+                editBox.setSuggestion("https://...");
 
                 addRenderableWidget(Button.builder(
-                                Component.translatable("immersive_paintings.gui.load"), sender -> loadImage(editBox.getValue()))
-                        .bounds(width / 2 - 50, height / 2 - 15, 100, 20)
+                                Component.translatable("immersive_paintings.gui.load"), sender -> {
+                                    if (!loadImage(editBox.getValue())) {
+                                        setError(Component.translatable("immersive_paintings.error.image_load_failed"));
+                                    }
+                                })
+                        .bounds(width / 2 + 50, height / 2 - 14, 50, 20)
                         .build()
                 );
 
@@ -454,7 +483,7 @@ public class ImmersivePaintingScreen extends Screen {
                         .build()
                 );
             }
-            case YOURS, DATAPACKS, PLAYERS -> {
+            case YOURS, PLAYERS -> {
                 rebuildPaintings();
 
                 // page
@@ -482,7 +511,8 @@ public class ImmersivePaintingScreen extends Screen {
                 //search
                 EditBox editBox = addRenderableWidget(new EditBox(font, width / 2 - 65, height / 2 - 88, 130, 16, Component.translatable("immersive_paintings.gui.search")));
                 editBox.setMaxLength(64);
-                editBox.setSuggestion("search");
+                editBox.setValue(filteredString);
+                editBox.setSuggestion(filteredString.isEmpty() ? "search" : null);
                 editBox.setResponder(s -> {
                     filteredString = s;
                     updateSearch();
@@ -512,6 +542,7 @@ public class ImmersivePaintingScreen extends Screen {
                         .tooltip(Tooltip.create(Component.translatable("immersive_paintings.gui.tooltip.filter_resolution")))
                         .build()
                 );
+                allWidget.active = filteredResolution != 0;
 
                 addRenderableWidget(Button
                         .builder(Component.literal("<"), sender -> {
@@ -542,7 +573,8 @@ public class ImmersivePaintingScreen extends Screen {
                 //width
                 EditBox widthWidget = addRenderableWidget(new EditBox(font, width / 2 + 80, height / 2 - 88, 40, 16, Component.translatable("immersive_paintings.gui.filter_width")));
                 widthWidget.setMaxLength(2);
-                widthWidget.setSuggestion("width");
+                widthWidget.setValue(filteredWidth == 0 ? "" : String.valueOf(filteredWidth));
+                widthWidget.setSuggestion(filteredWidth == 0 ? "width" : null);
                 widthWidget.setResponder(s -> {
                     try {
                         filteredWidth = Integer.parseInt(s);
@@ -556,7 +588,8 @@ public class ImmersivePaintingScreen extends Screen {
                 //height
                 EditBox heightWidget = addRenderableWidget(new EditBox(font, width / 2 + 80 + 40, height / 2 - 88, 40, 16, Component.translatable("immersive_paintings.gui.filter_height")));
                 heightWidget.setMaxLength(2);
-                heightWidget.setSuggestion("height");
+                heightWidget.setValue(filteredHeight == 0 ? "" : String.valueOf(filteredHeight));
+                heightWidget.setSuggestion(filteredHeight == 0 ? "height" : null);
                 heightWidget.setResponder(s -> {
                     try {
                         filteredHeight = Integer.parseInt(s);
@@ -633,46 +666,44 @@ public class ImmersivePaintingScreen extends Screen {
                         .build()
                 );
             }
-            case DELETE -> {
-                addRenderableWidget(Button.builder(
-                                Component.translatable("immersive_paintings.gui.cancel"), v -> setPage(Page.YOURS))
-                        .bounds(width / 2 - 100 - 5, height / 2 + 20, 100, 20)
-                        .build()
-                );
+            case DELETE, ADMIN_DELETE -> {
+                int buttonWidth = page == Page.ADMIN_DELETE ? 90 : 100;
+                int yOffset = page == Page.ADMIN_DELETE ? 10 : 20;
+                int start = page == Page.ADMIN_DELETE ? -145 : -105;
+                Page returnPage = page == Page.ADMIN_DELETE ? Page.PLAYERS : Page.YOURS;
 
-                addRenderableWidget(Button.builder(
-                                Component.translatable("immersive_paintings.gui.delete"), v -> {
-                                    NetworkHandler.Client.sendToServer(new PaintingDeletePayload(deletePainting, false));
-                                    setPage(Page.YOURS);
-                                })
-                        .bounds(width / 2 + 5, height / 2 + 20, 100, 20)
-                        .build()
-                );
-            }
-            case ADMIN_DELETE -> {
-                addRenderableWidget(Button.builder(
-                                Component.translatable("immersive_paintings.gui.cancel"), v -> setPage(Page.PLAYERS))
-                        .bounds(width / 2 - 115, height / 2 + 10, 70, 20)
-                        .build()
-                );
+                List<Button.Builder> buttons = new ArrayList<>();
+                buttons.add(Button.builder(Component.translatable("immersive_paintings.gui.cancel"), v -> {
+                    deleteAllConfirmStep = 0;
+                    setPage(returnPage);
+                }));
+                buttons.add(Button.builder(Component.translatable("immersive_paintings.gui.delete"), v -> {
+                    NetworkHandler.Client.sendToServer(new PaintingDeletePayload(deletePainting, false));
+                    setPage(returnPage);
+                }));
 
-                addRenderableWidget(Button.builder(
-                                Component.translatable("immersive_paintings.gui.delete"), v -> {
-                                    NetworkHandler.Client.sendToServer(new PaintingDeletePayload(deletePainting, false));
-                                    setPage(Page.PLAYERS);
-                                })
-                        .bounds(width / 2 - 40, height / 2 + 10, 70, 20)
-                        .build()
-                );
+                if (page == Page.ADMIN_DELETE) {
+                    int remaining = 3 - deleteAllConfirmStep;
+                    Component deleteAllLabel = deleteAllConfirmStep == 0
+                            ? Component.translatable("immersive_paintings.gui.delete_all")
+                            : Component.translatable("immersive_paintings.gui.delete_all_confirm", remaining);
+                    buttons.add(Button.builder(deleteAllLabel, v -> {
+                        deleteAllConfirmStep++;
+                        if (deleteAllConfirmStep >= 3) {
+                            NetworkHandler.Client.sendToServer(new PaintingDeletePayload(deletePainting, true));
+                            deleteAllConfirmStep = 0;
+                            setPage(Page.PLAYERS);
+                        } else {
+                            rebuild();
+                        }
+                    }));
+                }
 
-                addRenderableWidget(Button.builder(
-                                Component.translatable("immersive_paintings.gui.delete_all"), v -> {
-                                    NetworkHandler.Client.sendToServer(new PaintingDeletePayload(deletePainting, true));
-                                    setPage(Page.PLAYERS);
-                                })
-                        .bounds(width / 2 + 35, height / 2 + 10, 70, 20)
-                        .build()
-                );
+                for (int i = 0; i < buttons.size(); i++) {
+                    addRenderableWidget(buttons.get(i)
+                            .bounds(width / 2 + start + i * (buttonWidth + 5), height / 2 + yOffset, buttonWidth, 20)
+                            .build());
+                }
             }
         }
     }
@@ -726,9 +757,9 @@ public class ImmersivePaintingScreen extends Screen {
         paintingWidgets.clear();
 
         // paintings
-        for (int y = 0; y < 3; y++) {
-            for (int x = 0; x < 8; x++) {
-                int i = y * 8 + x + selectionPage * 24;
+        for (int y = 0; y < PAINTING_ROWS; y++) {
+            for (int x = 0; x < PAINTINGS_PER_ROW; x++) {
+                int i = y * PAINTINGS_PER_ROW + x + selectionPage * PAINTINGS_PER_PAGE;
                 if (i >= 0 && i < filteredPaintings.size()) {
                     ResourceLocation identifier = filteredPaintings.get(i);
 
@@ -772,6 +803,7 @@ public class ImmersivePaintingScreen extends Screen {
                                     setPage(Page.DELETE);
                                 } else if (page == Page.PLAYERS && isOp()) {
                                     deletePainting = identifier;
+                                    deleteAllConfirmStep = 0;
                                     setPage(Page.ADMIN_DELETE);
                                 }
                             }
@@ -816,7 +848,7 @@ public class ImmersivePaintingScreen extends Screen {
 
                 paintingWidget.setTooltip(Tooltip.create(Component.literal(file.getName())));
 
-                ResourceLocation identifier = Main.locate("screenshot_" + x);
+                ResourceLocation identifier = Main.locate("screenshot_" + i);
                 paintingWidgets.put(identifier, paintingWidget);
 
                 service.submit(() -> {
@@ -835,7 +867,8 @@ public class ImmersivePaintingScreen extends Screen {
         Page previousPage = this.page;
         this.page = page;
         if (page != previousPage && isPaintingSelectionPage(page)) {
-            filteredResolution = (page == Page.DATAPACKS ? 32 : 0);
+            resetFilters();
+            selectionPage = 0;
         }
 
         rebuild();
@@ -846,7 +879,14 @@ public class ImmersivePaintingScreen extends Screen {
     }
 
     private static boolean isPaintingSelectionPage(Page page) {
-        return page == Page.DATAPACKS || page == Page.PLAYERS || page == Page.YOURS;
+        return page == Page.PLAYERS || page == Page.YOURS;
+    }
+
+    private void resetFilters() {
+        filteredString = "";
+        filteredResolution = 0;
+        filteredWidth = 0;
+        filteredHeight = 0;
     }
 
     private void updateSearch() {
@@ -879,21 +919,38 @@ public class ImmersivePaintingScreen extends Screen {
         return Minecraft.getInstance().player != null && Minecraft.getInstance().player.hasPermissions(4);
     }
 
+    private boolean canUploadPainting() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        return player != null && player.hasPermissions(uploadPermissionLevel);
+    }
+
     private void setSelectionPage(int p) {
-        int maxPages = (int) Math.ceil(filteredPaintings.size() / 24.0);
-        selectionPage = Math.min(maxPages - 1, Math.max(0, p));
+        int maxPages = pageCount(filteredPaintings.size(), PAINTINGS_PER_PAGE);
+        selectionPage = clampPage(p, maxPages);
         rebuildPaintings();
-        pageWidget.setMessage(Component.literal((selectionPage + 1) + " / " + maxPages));
+        pageWidget.setMessage(pageMessage(selectionPage, maxPages));
     }
 
     private void setScreenshotPage(int p) {
-        int maxPages = (int) Math.ceil(screenshots.size() / 8.0);
+        int maxPages = pageCount(screenshots.size(), SCREENSHOTS_PER_PAGE);
         int oldPage = screenshotPage;
-        screenshotPage = Math.min(maxPages - 1, Math.max(0, p));
+        screenshotPage = clampPage(p, maxPages);
         if (oldPage != screenshotPage) {
             rebuildScreenshots();
         }
-        pageWidget.setMessage(Component.literal((screenshotPage + 1) + " / " + maxPages));
+        pageWidget.setMessage(pageMessage(screenshotPage, maxPages));
+    }
+
+    private static int pageCount(int itemCount, int itemsPerPage) {
+        return (itemCount + itemsPerPage - 1) / itemsPerPage;
+    }
+
+    private static int clampPage(int requestedPage, int pageCount) {
+        return pageCount == 0 ? 0 : Math.clamp(requestedPage, 0, pageCount - 1);
+    }
+
+    private static Component pageMessage(int currentPage, int pageCount) {
+        return Component.literal(pageCount == 0 ? "0 / 0" : (currentPage + 1) + " / " + pageCount);
     }
 
     @Override
@@ -912,6 +969,110 @@ public class ImmersivePaintingScreen extends Screen {
         }
 
         setError(Component.translatable("immersive_paintings.error.image_load_failed"));
+    }
+
+    private void openFilePicker() {
+        setError(Component.translatable("immersive_paintings.gui.browse.opening"));
+
+        Minecraft.getInstance().execute(() -> {
+            if (Minecraft.getInstance().mouseHandler != null) {
+                Minecraft.getInstance().mouseHandler.releaseMouse();
+            }
+
+            Thread thread = new Thread(() -> {
+                String selected = null;
+                Exception failure = null;
+                try {
+                    selected = openWithTinyFileDialog();
+                } catch (UnsatisfiedLinkError | NoClassDefFoundError e) {
+                    Main.LOGGER.warn("tinyfd unavailable, falling back to AWT file dialog", e);
+                    try {
+                        selected = openWithAwtFileDialog();
+                    } catch (Exception awtFailure) {
+                        failure = awtFailure;
+                        Main.LOGGER.error("Failed to open AWT file dialog", awtFailure);
+                    }
+                } catch (Exception e) {
+                    failure = e;
+                    Main.LOGGER.error("Failed to open native file dialog", e);
+                }
+
+                final String path = selected;
+                final Exception errorToReport = failure;
+                Minecraft.getInstance().execute(() -> {
+                    if (path != null && !path.isBlank()) {
+                        setError(null);
+                        if (!loadImage(path)) {
+                            setError(Component.translatable("immersive_paintings.error.image_load_failed"));
+                        }
+                    } else if (errorToReport != null) {
+                        setError(Component.translatable("immersive_paintings.error.file_dialog_failed"));
+                    } else {
+                        setError(null);
+                    }
+                });
+            }, "immersive-paintings-file-dialog");
+            thread.setDaemon(true);
+            thread.start();
+        });
+    }
+
+    private static String openWithTinyFileDialog() {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            PointerBuffer filters = stack.mallocPointer(6);
+            filters.put(stack.UTF8("*.png"));
+            filters.put(stack.UTF8("*.jpg"));
+            filters.put(stack.UTF8("*.jpeg"));
+            filters.put(stack.UTF8("*.gif"));
+            filters.put(stack.UTF8("*.bmp"));
+            filters.put(stack.UTF8("*.webp"));
+            filters.flip();
+
+            String result = TinyFileDialogs.tinyfd_openFileDialog(
+                    Component.translatable("immersive_paintings.gui.browse").getString(),
+                    "",
+                    filters,
+                    "Images",
+                    false);
+            if (result == null || result.isBlank()) {
+                return null;
+            }
+            int separator = result.indexOf('|');
+            return separator >= 0 ? result.substring(0, separator) : result;
+        }
+    }
+
+    private static String openWithAwtFileDialog() {
+        try {
+            System.setProperty("java.awt.headless", "false");
+
+            java.awt.FileDialog dialog = new java.awt.FileDialog(
+                    (java.awt.Frame) null,
+                    Component.translatable("immersive_paintings.gui.browse").getString(),
+                    java.awt.FileDialog.LOAD);
+            dialog.setFilenameFilter((dir, name) -> {
+                String lower = name.toLowerCase(Locale.ROOT);
+                return lower.endsWith(".png")
+                        || lower.endsWith(".jpg")
+                        || lower.endsWith(".jpeg")
+                        || lower.endsWith(".gif")
+                        || lower.endsWith(".bmp")
+                        || lower.endsWith(".webp");
+            });
+            dialog.setMultipleMode(false);
+            dialog.setAlwaysOnTop(true);
+            dialog.setVisible(true);
+
+            String file = dialog.getFile();
+            String directory = dialog.getDirectory();
+            if (file == null || directory == null) {
+                return null;
+            }
+            return new File(directory, file).getAbsolutePath();
+        } catch (Throwable t) {
+            Main.LOGGER.error("AWT file dialog failed", t);
+            throw new RuntimeException(t);
+        }
     }
 
     private boolean loadImage(String path) {
@@ -1072,7 +1233,7 @@ public class ImmersivePaintingScreen extends Screen {
         public double offsetY;
         public double zoom;
         public boolean pixelArt;
-        public boolean hidden = true;
+        public boolean hidden = false;
         public boolean nsfw;
 
         public PixelatorSettings(double dither, int colors, int resolution, int width, int height, double offsetX, double offsetY, double zoom, boolean pixelArt) {

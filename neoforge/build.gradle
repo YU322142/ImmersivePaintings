@@ -52,6 +52,12 @@ neoForge {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
+// The loader plugin adds commonResources directly to processResources, so apply
+// the exclusion to the final NeoForge resource task as well as its source set.
+processResources {
+    exclude 'data/immersive_paintings/paintings/**'
+}
+
 dependencies {
     implementation "me.fzzyhmstrs:fzzy_config:${fzzy_config_version}+neoforge"
 

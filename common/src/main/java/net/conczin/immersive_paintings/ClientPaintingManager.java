@@ -109,6 +109,19 @@ public class ClientPaintingManager {
         return getOrNSFW(mapping, identifier, size);
     }
 
+    /**
+     * Returns the cached full-resolution painting image, requesting it from
+     * the server when it is not available yet.
+     */
+    public static Optional<BufferedImage> getFullImage(ResourceLocation identifier) {
+        Optional<BufferedImage> image = paintingCache.get(textureIdentifier(identifier, Size.FULL));
+        if (image.isEmpty() && paintings.containsKey(identifier)) {
+            setImageRequest(identifier, false, false);
+        }
+
+        return image;
+    }
+
     public static void registerPainting(ResourceLocation identifier, Painting painting) {
         String fullId = textureIdentifier(identifier, Size.FULL);
         String thumbId = textureIdentifier(identifier, Size.THUMBNAIL);

@@ -12,7 +12,7 @@
   "entity.immersive_paintings.glow_graffiti": "Glowing Graffiti",
 
   "immersive_paintings.gui.upload": "Uploading, %s seconds left",
-  "immersive_paintings.gui.drop": "Drop an image here, enter a file path or URL or select a screenshot to start.",
+  "immersive_paintings.gui.drop": "Drop an image here, browse a local file, enter a URL, or select a screenshot.",
   "immersive_paintings.gui.graffiti_warning": "Image contains transparency, use a graffiti instead!",
   "immersive_paintings.gui.filter_all": "All",
   "immersive_paintings.gui.pixelart": "Pixelart",
@@ -150,5 +150,12 @@
   "config.immersive_paintings.client.eighthResolutionThreshold": "Eighth Resolution Threshold",
   "config.immersive_paintings.client.eighthResolutionThreshold.desc": "Threshold for resolution of eighth of the image size",
   "config.immersive_paintings.client.thumbResolutionThreshold": "Thumbnail Resolution Threshold",
-  "config.immersive_paintings.client.thumbResolutionThreshold.desc": "Threshold for resolution of thumbnail size"
+  "config.immersive_paintings.client.thumbResolutionThreshold.desc": "Threshold for resolution of thumbnail size",
+  "immersive_paintings.gui.browse": "Browse Image...",
+  "immersive_paintings.gui.browse.tooltip": "Open a system file dialog to select a local image",
+  "immersive_paintings.gui.url_hint": "Image URL",
+  "immersive_paintings.gui.delete_all_confirm": "Confirm (%s left)",
+  "immersive_paintings.gui.confirm_admin_deletion_progress": "Delete ALL paintings by this author? Confirmed %s/%s. Keep clicking to finish.",
+  "immersive_paintings.gui.browse.opening": "Opening file dialog...",
+  "immersive_paintings.error.file_dialog_failed": "Could not open the system file dialog. Try drag-and-drop or a URL."
 }

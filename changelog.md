@@ -1,3 +1,18 @@
+# 0.7.12+1.21.1 (community NeoForge port)
+
+* Based on the latest upstream Minecraft 1.21.1 branch
+* Ported the local image picker, URL loading, and upload-permission landing page
+* Loaded and sorted screenshots before building the screen, fixing the stale initial 0 / 0 indicator
+* Standardized screenshot pagination at five entries per page and retained final partial pages
+* Fixed screenshot thumbnail identifier collisions and page clamping
+* Fixed painting-library filtering and pagination state leaking between screens
+* Made newly uploaded paintings visible by default
+* Added a three-step confirmation before operator delete-all actions
+* Excluded upstream sample artwork from the NeoForge JAR while preserving external data packs
+* Retained the public full-resolution painting cache accessor for compatibility consumers
+* Added fork attribution, third-party notices, and the TwelveMonkeys 3.12.0 BSD-3-Clause license to the binary distribution
+* Kept MineAstr compatibility out of NeoForge because the 1.21.11 bridge is Fabric-only
+
 # 0.7.8
 
 * Fixed odd resolution filter behavior

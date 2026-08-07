@@ -54,6 +54,12 @@ jar {
         rename { "${it}_${mod_name}" }
     }
 
+    from(rootProject.file('THIRD_PARTY_NOTICES.md'))
+
+    from(rootProject.file('licenses')) {
+        into 'META-INF/licenses'
+    }
+
     manifest {
         attributes([
                 'Specification-Title'   : mod_name,

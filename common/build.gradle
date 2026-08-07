@@ -42,3 +42,7 @@ artifacts {
     commonJava sourceSets.main.java.sourceDirectories.singleFile
     commonResources sourceSets.main.resources.sourceDirectories.singleFile
 }
+
+sourceSets.main.resources {
+    exclude 'data/immersive_paintings/paintings/**'
+}
