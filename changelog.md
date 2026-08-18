@@ -1,3 +1,13 @@
+# 0.7.14+1.21.1 (MineAstr NeoForge integration)
+
+* Ported the complete MineAstr image-translation bridge to NeoForge 1.21.1
+* Requires optional MineAstr NeoForge 0.6.28 or newer on client and server
+* Detects targeted non-colliding paintings even when the backing block owns the vanilla hit result
+* Compresses full painting images below MineAstr's request limit off the client thread
+* Persists up to 512 translations keyed by server painting hash and language
+* Shares cached translations across motive, full-image, and thumbnail aliases
+* Displays translations beside the targeted painting with MineAstr's public display API
+
 # 0.7.13+1.21.1 (community NeoForge fix)
 
 * Matched NeoForge painting right-click behavior to the Fabric implementation

@@ -13,6 +13,19 @@ Minecraft 1.21.11 release line.
 > supported by the original author. Upstream project names and links are kept
 > for attribution and compatibility reference.
 
+## Changes in 0.7.14+1.21.1
+
+- Ports the complete MineAstr painting-image translation integration to
+  NeoForge 1.21.1 and MineAstr NeoForge 0.6.28 or newer.
+- Detects the painting under the crosshair, including non-colliding paintings
+  whose backing block owns Minecraft's normal hit result.
+- Compresses the full painting to a bounded JPEG and submits it through
+  MineAstr's public image-translation API.
+- Caches translations persistently by the server painting hash and language,
+  sharing one result between motive, full-image, and thumbnail aliases.
+- Displays translated text beside the targeted painting through MineAstr's
+  public world-space display API.
+
 ## Changes in 0.7.13+1.21.1
 
 - Fixes NeoForge gameplay behavior drifting from the Fabric implementation:
@@ -56,9 +69,11 @@ See [changelog.md](changelog.md) for upstream history and fork changes.
 | NeoForge | 21.1.154 |
 | Fzzy Config | 0.7.0+1.21 |
 
-This branch and its release artifact target NeoForge. MineAstr 0.6.24 image
-translation is a Fabric-only integration in the 1.21.11 source line; it is not
-loaded or called by this NeoForge build, and no MineAstr code or JAR is bundled.
+This branch and its release artifact target NeoForge. Optional painting-image
+translation requires MineAstr NeoForge 0.6.28 or newer on both client and
+server, together with its configured AstrBot bridge. MineAstr is not bundled.
+Disable MineAstr's game translations to prevent painting images from being
+submitted for translation.
 
 ## Building
 
@@ -104,5 +119,5 @@ third-party license texts are retained in the [licenses](licenses) directory.
 的官方发布。`0.7.12+1.21.1` 将本分支在 1.21.11 上完成的通用上传界面、
 截图分页、筛选状态、删除确认、默认可见性和许可证改动迁移到 1.21.1；
 每页固定显示 5 张截图，最后不足 5 张仍会正常显示，首次打开也会立即得到
-正确页数。MineAstr 图像翻译桥接只存在于 1.21.11 的 Fabric 构建，本
-NeoForge JAR 不加载或捆绑 MineAstr。
+正确页数。0.7.14 起支持 MineAstr NeoForge 0.6.28：准星指向画作时自动
+翻译，并按服务器画作哈希与语言持久缓存；客户端和服务器均需安装 MineAstr。

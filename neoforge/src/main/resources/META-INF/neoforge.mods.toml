@@ -37,3 +37,10 @@ versionRange = "[${fzzy_config_version},)"
 ordering = "AFTER"
 side = "BOTH"
 
+[[dependencies.${mod_id}]]
+modId = "mineastr"
+mandatory = false
+versionRange = "[0.6.28,)"
+ordering = "AFTER"
+side = "CLIENT"
+
