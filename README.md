@@ -13,6 +13,17 @@ Minecraft 1.21.11 release line.
 > supported by the original author. Upstream project names and links are kept
 > for attribution and compatibility reference.
 
+## Changes in 0.7.13+1.21.1
+
+- Fixes NeoForge gameplay behavior drifting from the Fabric implementation:
+  crouching right-click is reserved for compatibility interactions, while a
+  normal right-click opens the painting editor.
+- Rebuilds the NeoForge artifact from the maintained source branch instead of
+  the stale `0.7.8-migration.2` package.
+- Verifies that newly uploaded paintings are visible by default.
+- Verifies that the 189 bundled sample-art resources are absent from the final
+  NeoForge JAR while player uploads and external data packs remain supported.
+
 ## Changes in 0.7.12+1.21.1
 
 - Opens the new-painting workflow directly when the player has upload

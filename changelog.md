@@ -1,3 +1,10 @@
+# 0.7.13+1.21.1 (community NeoForge fix)
+
+* Matched NeoForge painting right-click behavior to the Fabric implementation
+* Reserved crouching right-click for compatibility interactions and kept normal right-click for the editor
+* Replaced the stale 0.7.8-migration.2 build that still shipped 189 bundled sample-art resources
+* Verified that new uploads default to visible and bundled sample artwork is absent from the final JAR
+
 # 0.7.12+1.21.1 (community NeoForge port)
 
 * Based on the latest upstream Minecraft 1.21.1 branch

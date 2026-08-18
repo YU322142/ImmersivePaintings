@@ -33,7 +33,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
-import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.DiodeBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -154,19 +153,23 @@ public class ImmersivePaintingEntity extends HangingEntity {
 
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
-        if (player instanceof ServerPlayer serverPlayer && serverPlayer.gameMode.getGameModeForPlayer() != GameType.ADVENTURE) {
-            if (!XercaPaintCompat.interactWithPainting(this, player, hand)) {
-                CommonConfig config = Configs.COMMON;
-                NetworkHandler.sendToClient(serverPlayer, new OpenGuiPayload(
-                        OpenGuiPayload.GuiType.EDITOR, getId(),
-                        config.minPaintingResolution, config.maxPaintingResolution,
-                        config.showOtherPlayersPaintings, config.uploadPermissionLevel
-                ));
+        // Match the current Fabric gameplay semantics: crouching is reserved
+        // for compatibility integrations, while a normal right-click opens the
+        // painting editor. The 1.21.1 branch still uses a server GUI payload.
+        if (player.isCrouching()) {
+            if (!level().isClientSide) {
+                XercaPaintCompat.interactWithPainting(this, player, hand);
             }
-            return InteractionResult.CONSUME;
-        } else {
-            return InteractionResult.PASS;
+        } else if (player instanceof ServerPlayer serverPlayer && !level().isClientSide) {
+            CommonConfig config = Configs.COMMON;
+            NetworkHandler.sendToClient(serverPlayer, new OpenGuiPayload(
+                    OpenGuiPayload.GuiType.EDITOR, getId(),
+                    config.minPaintingResolution, config.maxPaintingResolution,
+                    config.showOtherPlayersPaintings, config.uploadPermissionLevel
+            ));
         }
+
+        return InteractionResult.CONSUME;
     }
 
     @Override
