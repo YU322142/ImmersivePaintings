@@ -65,4 +65,11 @@ dependencies {
     jarJar(implementation(additionalRuntimeClasspath("com.twelvemonkeys.common:common-image:${webp_version}")))
     jarJar(implementation(additionalRuntimeClasspath("com.twelvemonkeys.imageio:imageio-core:${webp_version}")))
     jarJar(implementation(additionalRuntimeClasspath("com.twelvemonkeys.imageio:imageio-webp:${webp_version}")))
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+tasks.named('test', Test) {
+    useJUnitPlatform()
 }

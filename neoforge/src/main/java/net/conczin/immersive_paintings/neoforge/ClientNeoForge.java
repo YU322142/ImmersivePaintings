@@ -12,6 +12,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLConstructModEvent;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -19,6 +20,11 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 @Mod(value = Main.MOD_ID, dist = Dist.CLIENT)
 @EventBusSubscriber(modid = Main.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public final class ClientNeoForge {
+    @SubscribeEvent
+    public static void setup(FMLClientSetupEvent event) {
+        event.enqueueWork(net.conczin.immersive_paintings.neoforge.compat.MineAstrTranslationCompat::initialize);
+    }
+
     @SubscribeEvent
     public static void registerNetwork(final RegisterPayloadHandlersEvent event) {
         NetworkHandler.Client.registerSender(PacketDistributor::sendToServer);

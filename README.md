@@ -13,6 +13,13 @@ Minecraft 1.21.11 release line.
 > supported by the original author. Upstream project names and links are kept
 > for attribution and compatibility reference.
 
+## Changes in 0.7.15+1.21.1
+
+- Updates the optional integration baseline to MineAstr NeoForge 0.6.29.
+- Requests the full painting image through the existing client cache and logs a bounded waiting state while it arrives.
+- Keeps translation display tied to the currently targeted painting and removes it immediately when the target, screen, world, or HUD state changes.
+- Uses MineAstr's translated-only Create-style HUD instead of rendering duplicated original text in world space.
+
 ## Changes in 0.7.14+1.21.1
 
 - Ports the complete MineAstr painting-image translation integration to

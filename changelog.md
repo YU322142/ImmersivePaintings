@@ -1,3 +1,11 @@
+# 0.7.15+1.21.1 (MineAstr target-HUD integration)
+
+* Updated the optional client integration baseline to MineAstr NeoForge 0.6.29
+* Kept image requests on the existing Immersive Paintings cache and network path
+* Added bounded waiting and retry state while the full image is being fetched
+* Removed the active display immediately when the crosshair target, screen, world, or HUD state changes
+* Delegated translated-only Create-style display to MineAstr instead of duplicating original text in world space
+
 # 0.7.14+1.21.1 (MineAstr NeoForge integration)
 
 * Ported the complete MineAstr image-translation bridge to NeoForge 1.21.1
