@@ -1,8 +1,16 @@
 # Immersive Paintings 0.7.15 for NeoForge 1.21.1
 
-[中文说明](README.zh-CN.md) · [Changelog](changelog.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+[中文说明](README.zh-CN.md) · [Changelog](changelog.md) · [中文更新日志](changelog.zh-CN.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 This repository is a community-maintained NeoForge port of [Luke100000/ImmersivePaintings](https://github.com/Luke100000/ImmersivePaintings). It is not an official upstream release.
+
+## Forks and project URLs
+
+- Maintained community fork: [YU322142/ImmersivePaintings](https://github.com/YU322142/ImmersivePaintings), branch `1.21.1-neoforge`.
+- Original upstream: [Luke100000/ImmersivePaintings](https://github.com/Luke100000/ImmersivePaintings).
+- MineAstr integration fork: [YU322142/MineAstr](https://github.com/YU322142/MineAstr), branch `minecraft-neoforge-1.21.1`.
+
+The image-translation integration is maintained by these two community forks. It is not an official feature supplied by either upstream project. Report integration issues to the corresponding fork.
 
 | Component | Requirement |
 | --- | --- |

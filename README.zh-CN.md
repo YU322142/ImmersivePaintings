@@ -1,8 +1,16 @@
 # Immersive Paintings 0.7.15 NeoForge 1.21.1 社区移植版
 
-[English](README.md) · [变更日志](changelog.md) · [第三方声明](THIRD_PARTY_NOTICES.md)
+[English](README.md) · [更新日志](changelog.zh-CN.md) · [Changelog](changelog.md) · [第三方声明](THIRD_PARTY_NOTICES.md)
 
 这是基于 [Luke100000/ImmersivePaintings](https://github.com/Luke100000/ImmersivePaintings) 维护的 NeoForge 社区移植版，不是原作者的官方发布。
+
+## Fork 与项目地址
+
+- 当前社区 Fork：[YU322142/ImmersivePaintings](https://github.com/YU322142/ImmersivePaintings)，NeoForge 1.21.1 分支为 `1.21.1-neoforge`。
+- 原始上游：[Luke100000/ImmersivePaintings](https://github.com/Luke100000/ImmersivePaintings)。
+- MineAstr 联动 Fork：[YU322142/MineAstr](https://github.com/YU322142/MineAstr)，对应分支为 `minecraft-neoforge-1.21.1`。
+
+图片翻译由上述两个社区 Fork 共同维护，并非两个上游项目的官方功能。联动问题请提交到对应 Fork。
 
 | 项目 | 要求 |
 | --- | --- |

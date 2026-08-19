@@ -1,3 +1,7 @@
+[中文](changelog.zh-CN.md)
+
+Community fork: [YU322142/ImmersivePaintings](https://github.com/YU322142/ImmersivePaintings) · Upstream: [Luke100000/ImmersivePaintings](https://github.com/Luke100000/ImmersivePaintings) · MineAstr fork: [YU322142/MineAstr](https://github.com/YU322142/MineAstr)
+
 # 0.7.15+1.21.1 (MineAstr target-HUD integration)
 
 * Updated the optional client integration baseline to MineAstr NeoForge 0.6.29
@@ -5,6 +9,7 @@
 * Added bounded waiting and retry state while the full image is being fetched
 * Removed the active display immediately when the crosshair target, screen, world, or HUD state changes
 * Delegated translated-only Create-style display to MineAstr instead of duplicating original text in world space
+* Paired the community Immersive Paintings fork with the community MineAstr fork; this is not an upstream-official integration
 
 # 0.7.14+1.21.1 (MineAstr NeoForge integration)
 
@@ -215,6 +220,6 @@
 
 * Fixed crash on 32 KB payloads
 
-* # 0.1.0
+# 0.1.0
 
 * Initial release
