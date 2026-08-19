@@ -77,7 +77,7 @@ See [changelog.md](changelog.md) for upstream history and fork changes.
 | Fzzy Config | 0.7.0+1.21 |
 
 This branch and its release artifact target NeoForge. Optional painting-image
-translation requires MineAstr NeoForge 0.6.28 or newer on both client and
+translation requires MineAstr NeoForge 0.6.29 or newer on both client and
 server, together with its configured AstrBot bridge. MineAstr is not bundled.
 Disable MineAstr's game translations to prevent painting images from being
 submitted for translation.
@@ -126,5 +126,14 @@ third-party license texts are retained in the [licenses](licenses) directory.
 的官方发布。`0.7.12+1.21.1` 将本分支在 1.21.11 上完成的通用上传界面、
 截图分页、筛选状态、删除确认、默认可见性和许可证改动迁移到 1.21.1；
 每页固定显示 5 张截图，最后不足 5 张仍会正常显示，首次打开也会立即得到
-正确页数。0.7.14 起支持 MineAstr NeoForge 0.6.28：准星指向画作时自动
-翻译，并按服务器画作哈希与语言持久缓存；客户端和服务器均需安装 MineAstr。
+正确页数。0.7.15 使用 MineAstr NeoForge 0.6.29：准星指向画作时通过既有
+图片缓存请求翻译，只在当前目标仍有效时显示译文；移开准星、打开界面、隐藏 HUD
+或切换世界会立即清理显示。画面默认只显示译文，不再重复原文；客户端和服务器应
+使用配套版本，客户端是实际图片编码、请求和显示的一侧。
+
+### 中文安装说明
+
+- 客户端与服务端均替换为 `immersive_paintings-neoforge-1.21.1-0.7.15.jar`，不要与旧版并存。
+- 客户端与服务端安装 MineAstr 0.6.29；只升级服务器不能补齐客户端显示 API。
+- 玩家上传的图片、服务器画作索引和客户端翻译缓存都属于运行数据，不应提交到源码仓库或随普通模组更新包分发。
+- 图片仍由沉浸画框原有缓存/网络链路取得，兼容层只把压缩后的图像交给 MineAstr，不直接连接 AstrBot。
